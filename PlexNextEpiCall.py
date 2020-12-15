@@ -63,14 +63,22 @@ def start():
         episodeNumber = session['@index']
         try:
             parentKey = session['@parentKey']
+            res = requests.get(baseurl + parentKey + '?X-Plex-Token=' + token)
             seasonXml = xmltodict.parse(res.text)['MediaContainer']
             if 'Directory' in seasonXml:
                 childrenKey = seasonXml['Directory']['@key'] # 멀티시즌인데 단일시즌만 있는경운듯
             else:
-                parentKey = seasonXml['Video']['@parentKey']
-                res = requests.get(baseurl + parentKey + '?X-Plex-Token=' + token)
-                parentXml = xmltodict.parse(res.text)['MediaContainer']
-                childrenKey = parentXml['Directory']['@key'] # 이 경우 멀티시즌인데 멀티시즌이 실제로 있는 경우
+                if not isinstance(seasonXml['Video'] , list):
+                    parentKey = seasonXml['Video']['@parentKey']
+                    res = requests.get(baseurl + parentKey + '?X-Plex-Token=' + token)
+                    parentXml = xmltodict.parse(res.text)['MediaContainer']
+                    childrenKey = parentXml['Directory']['@key'] # 이 경우 멀티시즌인데 멀티시즌이 실제로 있는 경우
+                else: # 여러명이 시청하는 경운데;;;
+
+                    parentKey = seasonXml['Video']['@parentKey']
+                    res = requests.get(baseurl + parentKey + '?X-Plex-Token=' + token)
+                    parentXml = xmltodict.parse(res.text)['MediaContainer']
+                    childrenKey = parentXml['Directory']['@key'] # 이 경우 멀티시즌인데 멀티시즌이 실제로 있는 경우
             res = requests.get(baseurl + childrenKey + '?X-Plex-Token=' + token)
             childrenXml = xmltodict.parse(res.text)['MediaContainer']
             res = requests.get(baseurl + parentKey + '?X-Plex-Token=' + token)
