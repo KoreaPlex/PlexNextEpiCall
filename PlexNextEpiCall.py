@@ -4,7 +4,7 @@ import xmltodict
 import os
 
 baseurl = 'http://localhost:32400'
-token = 'EDLzhCqbEjXvwQuziiCz'
+token = 'xx'
 tarProgress = 0.7 # 70% 이상 시청
 intervalTime = 10
 fragmentTime = 20 # 앞부분 몇 초를 잘라서 다운받을지
