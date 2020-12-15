@@ -5,7 +5,7 @@ import os
 
 baseurl = 'http://localhost:32400'
 token = 'EDLzhCqbEjXvwQuziiCz'
-tarProgress = 0.9 # 90% 이상 시청
+tarProgress = 0.7 # 70% 이상 시청
 intervalTime = 10
 fragmentTime = 20 # 앞부분 몇 초를 잘라서 다운받을지
 cacheDir = "" # 캐시폴더 디렉토리. 블랭크면 현재위치
@@ -53,7 +53,8 @@ def start():
             sessionProgress = float(session['@viewOffset']) / float(session['@duration'])
         except: # 현재 세션이 시청중인 동영상이 analyze가 안 된 경우 duration을 call 할 수 없음. # 강제로 analyze와 refreshing해야
             if cannotGetDurationThenAnalyzeAndRefresh:
-                mediaKey = xml['Video']['@key']
+                try:mediaKey = xml['Video']['@key']
+                except:continue # Vid Key 를 구할 수 없으면 외부스트림일 확률.
                 t1 = requests.put(url=baseurl + mediaKey + '/analyze?X-Plex-Token=' + token)
             continue # 현재 세션 구할 수 없음
         if not sessionProgress >= tarProgress: continue
