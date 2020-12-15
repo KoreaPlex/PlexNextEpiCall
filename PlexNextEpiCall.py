@@ -11,9 +11,17 @@ fragmentTime = 20 # 앞부분 몇 초를 잘라서 다운받을지
 cacheDir = "" # 캐시폴더 디렉토리. 블랭크면 현재위치
 
 ###
+cannotGetDurationThenAnalyzeAndRefresh = True
+
+directoryMapping = {
+    '/mnt/g2/test/koreaDrama' : '/mnt/total/koreaDrama',
+    '/mnt/exam1/2222' : '/test/test/test'
+}
+
+###
 
 
-def processFFMPEG(mediaPath):
+def processFFMPEG(mediaPath , nextEpisodeVideo):
     if not cacheDir :
         rootPath = os.getcwd()
     else:
@@ -21,6 +29,13 @@ def processFFMPEG(mediaPath):
     output = os.path.split(mediaPath)[-1]
     if os.path.exists(output) :
         return
+    # mediaPath 처리
+    for path in directoryMapping:
+        if path in mediaPath:
+            mediaPath = mediaPath.replace(path , directoryMapping[path])
+    # analyze도 한다
+    t1 = requests.put(url=baseurl + nextEpisodeVideo['@key'] + '/analyze?X-Plex-Token=' + token)
+    #t2 = requests.put(url=baseurl + nextEpisodeVideo['@key']  + '/refresh?X-Plex-Token=' + token)
     command = 'ffmpeg -i "' + mediaPath + '" -ss 0 -t ' + str(fragmentTime) + ' -vcodec copy -acodec copy "' + str(os.path.join(rootPath , output)) + '"'
     os.system(command)
 
@@ -34,8 +49,13 @@ def start():
     else:
         sessions = xml['Video']
     for session in sessions:
-        try:sessionProgress = float(session['@viewOffset']) / float(session['@duration'])
-        except: continue # 현재 세션 구할 수 없음
+        try:
+            sessionProgress = float(session['@viewOffset']) / float(session['@duration'])
+        except: # 현재 세션이 시청중인 동영상이 analyze가 안 된 경우 duration을 call 할 수 없음. # 강제로 analyze와 refreshing해야
+            if cannotGetDurationThenAnalyzeAndRefresh:
+                mediaKey = xml['Video']['@key']
+                t1 = requests.put(url=baseurl + mediaKey + '/analyze?X-Plex-Token=' + token)
+            continue # 현재 세션 구할 수 없음
         if not sessionProgress >= tarProgress: continue
         if session['@type'] in ['movie'] : continue
         if session['@type'] not in ['episode'] : continue # 현재는 episode만 지원(드라마)
@@ -44,12 +64,18 @@ def start():
         try:
             parentKey = session['@parentKey']
             seasonXml = xmltodict.parse(res.text)['MediaContainer']
-            childrenKey = seasonXml['Directory']['@key']
+            if 'Directory' in seasonXml:
+                childrenKey = seasonXml['Directory']['@key'] # 멀티시즌인데 단일시즌만 있는경운듯
+            else:
+                parentKey = seasonXml['Video']['@parentKey']
+                res = requests.get(baseurl + parentKey + '?X-Plex-Token=' + token)
+                parentXml = xmltodict.parse(res.text)['MediaContainer']
+                childrenKey = parentXml['Directory']['@key'] # 이 경우 멀티시즌인데 멀티시즌이 실제로 있는 경우
             res = requests.get(baseurl + childrenKey + '?X-Plex-Token=' + token)
             childrenXml = xmltodict.parse(res.text)['MediaContainer']
             res = requests.get(baseurl + parentKey + '?X-Plex-Token=' + token)
         except:
-            grandparentKey = session['@grandparentKey'] # 보통 단일시즌
+            grandparentKey = session['@grandparentKey'] # 보통 단일시즌인 경우
             res = requests.get(baseurl + grandparentKey + '?X-Plex-Token=' + token)
             grandparentSeasonXml = xmltodict.parse(res.text)['MediaContainer']
             childrenKey = grandparentSeasonXml['Directory']['@key']
@@ -66,13 +92,13 @@ def start():
                 # 다음 에피소드 구한다.
                 try:nextEpisodeVideo = childrenXml['Video'][index + 1]
                 except:continue # 다음 에피소드 없음. (다음 시즌이라던가)
-                tarVidPaths = []
+
                 if isinstance(nextEpisodeVideo['Media'], list):
                     tarVidPaths = [item['Part']['@file'] for item in nextEpisodeVideo['Media']]
                 else:
                     tarVidPaths = [nextEpisodeVideo['Media']['Part']['@file']]
                 for vidPath in tarVidPaths:
-                    processFFMPEG(vidPath)
+                    processFFMPEG(vidPath , nextEpisodeVideo)
     return
 
 
