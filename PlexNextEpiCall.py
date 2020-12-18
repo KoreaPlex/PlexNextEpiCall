@@ -36,7 +36,7 @@ def processFFMPEG(mediaPath , nextEpisodeVideo):
     # analyze도 한다
     t1 = requests.put(url=baseurl + nextEpisodeVideo['@key'] + '/analyze?X-Plex-Token=' + token)
     #t2 = requests.put(url=baseurl + nextEpisodeVideo['@key']  + '/refresh?X-Plex-Token=' + token)
-    command = 'ffmpeg -i "' + mediaPath + '" -ss 0 -t ' + str(fragmentTime) + ' -vcodec copy -acodec copy -y "' + str(os.path.join(rootPath , output)) + '"'
+    command = 'ffmpeg -i "' + mediaPath + '" -ss 0 -t ' + str(fragmentTime) + ' -vcodec copy -acodec copy -n "' + str(os.path.join(rootPath , output)) + '"'
     os.system(command)
 
 def start():
